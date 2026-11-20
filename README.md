@@ -1,82 +1,200 @@
-# 📂 Real-Time File Monitoring & Processing Windows Service
+# 📂 File Monitoring Service — C# Windows Service
 
-**File Monitoring Service** is an automated background Windows Service developed using **C# (.NET Framework)** to continuously monitor specified source directories for incoming files in real-time[span_0](start_span)[span_0](end_span). Built for background automation, the system detects newly created files, validates file lock readiness, renames files dynamically using unique GUIDs to prevent naming collisions, transfers them to a target destination folder, and maintains an operational execution log[span_1](start_span)[span_1](end_span).
+![Language](https://img.shields.io/badge/language-C%23-blue)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![Framework](https://img.shields.io/badge/.NET%20Framework-4.x-purple)
+![Type](https://img.shields.io/badge/type-Windows%20Service-green)
 
----
+A Windows Service written in C# that watches a source folder, and whenever a new file appears it **renames the file with a unique GUID and moves it to a destination folder**. Every action is written to a log file.
 
-## 🌟 Key Features
+It is a compact reference for:
 
-### 📁 Real-Time Directory Monitoring
-* **Event-Driven File Watcher:** Utilizes `FileSystemWatcher` to detect newly added files instantly without polling performance overhead[span_2](start_span)[span_2](end_span).
-* **GUID-Based Renaming:** Automatically renames incoming files with globally unique identifiers (`Guid.NewGuid()`) prior to transfer to ensure data integrity and avoid overwriting existing files[span_3](start_span)[span_3](end_span).
-
-### 🔒 File Access & Lock Validation
-* **I/O Readiness Check:** Features an iterative lock-checking mechanism (`IsFileReady`) that verifies files are fully written and released by external processes before attempting operations[span_4](start_span)[span_4](end_span).
-* **Retry Safety Handling:** Retries file availability checks in 500ms intervals (up to 10 attempts) with dynamic timeout handling[span_5](start_span)[span_5](end_span).
-
-### 🔄 Dual Execution Modes
-* **Background Windows Service:** Operates silently in the system background managed by Service Control Manager (SCM) under `LocalService` identity[span_6](start_span)[span_6](end_span).
-* **Interactive Console Mode:** Supports direct console startup via `Environment.UserInteractive` for easy testing, debugging, and live output monitoring[span_7](start_span)[span_7](end_span).
-
-### 📝 Logging & Auto-Provisioning
-* **Comprehensive Audit Trail:** Logs all detection events, successful file transfers, lock delays, and runtime exceptions into `ServiceLog.txt`[span_8](start_span)[span_8](end_span).
-* **Automatic Folder Creation:** Automatically provisions source, destination, and log directories upon startup if missing[span_9](start_span)[span_9](end_span).
-
-### ⚙️ System Dependencies & Stability
-* **Service Dependencies:** Configured with native Windows service dependencies (`RpcSs`, `EventLog`, `LanmanWorkstation`) to guarantee network and system readiness[span_10](start_span)[span_10](end_span).
+- Building a Windows Service with `ServiceBase`
+- Watching a folder with `FileSystemWatcher`
+- Waiting until a file is fully written before touching it
+- Reading settings from `App.config`
+- Installing a service with `ProjInstaller` and `installutil`
+- Running the same code as a **console app for debugging**
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## ✨ Features
 
-* **Language:** C#[span_11](start_span)[span_11](end_span)
-* **Framework:** .NET Framework (`System.ServiceProcess`, `System.Configuration.Install`)[span_12](start_span)[span_12](end_span)
-* **Core Components:** `FileSystemWatcher`, `System.IO` (FileStream / Directory Operations), `System.Threading`[span_13](start_span)[span_13](end_span)
-
----
-
-## ⚙️ Configuration (App.config)
-
-All folder paths are fully configurable without modifying or rebuilding code[span_14](start_span)[span_14](end_span):
-
-<appSettings>
-  <add key="SourceFolder" value="F:\FileMonitoring\Source" />
-  <add key="DestinationFolder" value="F:\FileMonitoring\Destination" />
-  <add key="LogFolder" value="F:\FileMonitoring\Logs" />
-</appSettings>
+- Real-time monitoring of a folder (`FileSystemWatcher`, `Created` event)
+- Safe file handling: waits until the file is not locked (up to 10 attempts, 500 ms apart)
+- Renames each file to a new GUID and keeps the original extension
+- Moves the file to a destination folder
+- Timestamped logging to `ServiceLog.txt`
+- Configurable folders through `App.config`, with built-in defaults
+- Creates missing folders automatically
+- Runs as a Windows Service (automatic start) or as a console app
+- Echoes log messages to the console when run interactively
 
 ---
 
-## 🚀 How to Run & Install
+## 🧱 How It Works
 
-### Prerequisites
-* **Visual Studio** (2019 / 2022 / 2026) with .NET Desktop Development workload.
+```
+Source folder ──(new file)──► wait until file is ready ──► rename to GUID ──► Destination folder
+                                                                  │
+                                                                  └──► ServiceLog.txt
+```
 
----
+1. `OnStart` creates a `FileSystemWatcher` on `SourceFolder`.
+2. When a file is created, `OnFileCreated` checks `IsFileReady` by trying to open it with exclusive access.
+3. If the file stays locked for more than 10 attempts, it is skipped and logged.
+4. Otherwise it is moved to `DestinationFolder` as `{GUID}{original extension}`.
+5. Success and errors are written to the log.
 
-### Option 1: Running in Debug / Console Mode
-Simply run the compiled executable (`FileMonitoringService.exe`) directly[span_15](start_span)[span_15](end_span). The application detects interactive mode and opens a console window for real-time monitoring[span_16](start_span)[span_16](end_span).
+**Example**
 
----
-
-### Option 2: Installing as a Native Windows Service
-
-1. **Open Developer Command Prompt for Visual Studio** as **Administrator**.
-2. **Navigate to the output build directory** containing `FileMonitoringService.exe`.
-3. **Register the Service:**
-   InstallUtil.exe FileMonitoringService.exe
-4. **Manage Service:**
-   * Open `services.msc` on your machine.
-   * Locate **File Monitoring Service**[span_17](start_span)[span_17](end_span).
-   * Start or set startup type to **Automatic**[span_18](start_span)[span_18](end_span).
-
-5. **Uninstall Service:**
-   InstallUtil.exe /u FileMonitoringService.exe
+```
+Source:       invoice.pdf
+Destination:  3f2a9c1e-7b4d-4c58-9d1a-5e6f8a2b0c11.pdf
+```
 
 ---
 
-## 👨‍💻 Author
+## 📁 Project Structure
 
-**Muhammad Sadaka**  
-* GitHub: [@Muhammad-sadaka](https://github.com/Muhammad-sadaka)
+```
+FileMonitoringService/
+├── FileMonitoringService.cs   # Service logic (watcher, move, log)
+├── ProjInstaller.cs           # Service installer configuration
+├── Program.cs                 # Entry point
+├── App.config                 # Folder settings
+└── README.md
+```
 
+---
+
+## ⚙️ Configuration
+
+Edit `App.config`:
+
+```xml
+<configuration>
+  <appSettings>
+    <add key="SourceFolder" value="F:\FileMonitoring\Source" />
+    <add key="DestinationFolder" value="F:\FileMonitoring\Destination" />
+    <add key="LogFolder" value="F:\FileMonitoring\Logs" />
+  </appSettings>
+</configuration>
+```
+
+| Key                 | Description                       | Default                           |
+|---------------------|-----------------------------------|-----------------------------------|
+| `SourceFolder`      | Folder to watch                   | `F:\FileMonitoring\Source`        |
+| `DestinationFolder` | Where renamed files are moved     | `F:\FileMonitoring\Destination`   |
+| `LogFolder`         | Where `ServiceLog.txt` is written | `F:\FileMonitoring\Logs`          |
+
+If a key is missing, the default is used and a warning is logged.
+
+---
+
+## 🚀 Getting Started
+
+### Requirements
+- Windows
+- .NET Framework 4.x
+- Visual Studio 2019+ (to build)
+- Administrator rights (to install the service)
+
+### 1. Clone and build
+```bash
+git clone https://github.com/<your-username>/<your-repo>.git
+```
+Open the solution in Visual Studio and build in **Release** mode.
+
+### 2. Test in console mode (recommended first)
+Run the project from Visual Studio. When started interactively, the service runs in the console and prints log messages. Press **Enter** to stop it.
+
+### 3. Install the service
+Open **Developer Command Prompt for VS as Administrator**:
+
+```bash
+installutil FileMonitoringService.exe
+```
+
+### 4. Start the service
+```bash
+net start FileMonitoringService
+```
+
+### 5. Stop and uninstall
+```bash
+net stop FileMonitoringService
+installutil /u FileMonitoringService.exe
+```
+
+### Service settings
+| Setting      | Value                                  |
+|--------------|----------------------------------------|
+| Service name | `FileMonitoringService`                |
+| Display name | File Monitoring Service                |
+| Start type   | Automatic                              |
+| Account      | `LocalService`                         |
+| Depends on   | `RpcSs`, `EventLog`, `LanmanWorkstation` |
+
+> **Permissions:** the service runs as `LocalService`. Make sure this account has read/write access to the source, destination, and log folders, otherwise moves and logging will fail.
+
+---
+
+## 🧪 Quick Test
+
+1. Start the service.
+2. Copy any file into the source folder.
+3. Within a second or two, the file disappears from the source and appears in the destination with a GUID name.
+4. Check `ServiceLog.txt`:
+
+```
+[2026-11-20 03:10:41] File detected: F:\FileMonitoring\Source\report.docx
+[2026-11-20 03:10:41] File moved: F:\FileMonitoring\Source\report.docx -> F:\FileMonitoring\Destination\9b1c...e4.docx
+```
+
+---
+
+## ⚠️ Known Limitations
+
+- Files that already exist in the source folder when the service starts are **not** processed (only new files trigger the event)
+- Subfolders are not monitored (`IncludeSubdirectories = false`)
+- The retry loop uses `Thread.Sleep`, which blocks the watcher thread while waiting
+- Log writes are not synchronized, so many simultaneous files can cause write conflicts
+- Only `IOException` is handled while checking readiness; permission errors surface in the generic catch
+- Log folders are written to before they are guaranteed to exist if the configured folder is missing at construction time
+- The original file name is only recorded in the log, so the log is the only way to map a GUID back to its original name
+
+## 🗺️ Roadmap
+
+- [ ] Process files already present at startup
+- [ ] Thread-safe logging (lock or a logging library)
+- [ ] Async/queued processing instead of `Thread.Sleep`
+- [ ] Optional subfolder monitoring
+- [ ] Log rotation by date or size
+- [ ] Support for filters (extensions, size)
+- [ ] Windows Event Log integration
+- [ ] Unit tests
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m "Add your feature"`
+4. Push: `git push origin feature/your-feature`
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+Released under the [MIT License](LICENSE).
+
+## 👤 Author
+
+**Muhammad** — Junior Software Developer, Damascus, Syria
+
+- GitHub: [@Muhammad-sadaka](https://github.com/Muhammad-sadaka)
+
+If this project helped you learn, please give it a ⭐
